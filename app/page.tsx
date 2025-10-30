@@ -9,9 +9,10 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [showSuccess, setShowSuccess] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const qrScannerRef = useRef<QrScanner | null>(null);
+  const isProcessingRef = useRef(false);
+  const lastProcessedCode = useRef<string | null>(null);
 
   useEffect(() => {
     // Cleanup on unmount
@@ -62,12 +63,13 @@ export default function Home() {
         videoRef.current,
         async (result) => {
           if (result.data === 'Asamblea de circuito') {
-            // Prevent multiple executions
-            if (isProcessing) {
+            // Prevent multiple executions of the same code
+            if (isProcessingRef.current || lastProcessedCode.current === result.data) {
               return;
             }
             
-            setIsProcessing(true);
+            isProcessingRef.current = true;
+            lastProcessedCode.current = result.data;
             
             try {
               // Save to database
@@ -93,7 +95,7 @@ export default function Home() {
               setShowSuccess(true);
               closeScanner();
             } finally {
-              setIsProcessing(false);
+              isProcessingRef.current = false;
             }
           } else {
             // Opcional: mostrar mensaje de error
@@ -128,7 +130,30 @@ export default function Home() {
     setIsScanning(false);
     setError('');
     setIsLoading(false);
-    setIsProcessing(false);
+    isProcessingRef.current = false;
+    lastProcessedCode.current = null;
+  };
+
+  const limpiarValidaciones = async () => {
+    if (!confirm('¿Estás seguro de que quieres eliminar todos los códigos validados?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/validaciones/limpiar', {
+        method: 'POST',
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setScanCount(0);
+        alert('Todos los códigos han sido eliminados');
+      }
+    } catch (error) {
+      console.error('Error al limpiar validaciones:', error);
+      alert('Error al limpiar los códigos validados');
+    }
   };
 
   return (
@@ -171,31 +196,56 @@ export default function Home() {
               </div>
             )}
 
-            <button
-              onClick={startScanner}
-              className="flex h-14 w-64 items-center justify-center gap-3 rounded-full bg-foreground px-8 text-lg font-semibold text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc]"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={2}
-                stroke="currentColor"
-                className="h-6 w-6"
+            <div className="flex flex-col gap-4">
+              <button
+                onClick={startScanner}
+                className="flex h-14 w-64 items-center justify-center gap-3 rounded-full bg-foreground px-8 text-lg font-semibold text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc]"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5ZM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5ZM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5Z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M6.75 6.75h.75v.75h-.75v-.75ZM6.75 17.25h.75v.75h-.75v-.75ZM17.25 6.75h.75v.75h-.75v-.75ZM12 12h.75v.75H12v-.75ZM12 16.5h.75v.75H12V16.5ZM16.5 12h.75v.75h-.75V12ZM16.5 16.5h.75v.75h-.75V16.5ZM12 10.5h.75v.75H12V10.5ZM7.5 12h.75v.75H7.5V12ZM6 16.5h.75v.75H6V16.5ZM6.75 10.5h.75v.75h-.75V10.5ZM10.5 6h.75v.75H10.5V6ZM10.5 18h.75v.75H10.5V18ZM18 10.5h.75v.75H18V10.5ZM18 16.5h.75v.75H18V16.5ZM21.75 7.5h-2.25m0 0v2.25m0-2.25V4.5M6 7.5h2.25m0 0V5.25m0 2.25V9M3 3v3.75M3 21v-3.75M21 3v3.75M21 21v-3.75M12 3v2.25m0 13.5V21"
-                />
-              </svg>
-              Abrir Escáner QR
-            </button>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="currentColor"
+                  className="h-6 w-6"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5ZM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5ZM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5Z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M6.75 6.75h.75v.75h-.75v-.75ZM6.75 17.25h.75v.75h-.75v-.75ZM17.25 6.75h.75v.75h-.75v-.75ZM12 12h.75v.75H12v-.75ZM12 16.5h.75v.75H12V16.5ZM16.5 12h.75v.75h-.75V12ZM16.5 16.5h.75v.75h-.75V16.5ZM12 10.5h.75v.75H12V10.5ZM7.5 12h.75v.75H7.5V12ZM6 16.5h.75v.75H6V16.5ZM6.75 10.5h.75v.75h-.75V10.5ZM10.5 6h.75v.75H10.5V6ZM10.5 18h.75v.75H10.5V18ZM18 10.5h.75v.75H18V10.5ZM18 16.5h.75v.75H18V16.5ZM21.75 7.5h-2.25m0 0v2.25m0-2.25V4.5M6 7.5h2.25m0 0V5.25m0 2.25V9M3 3v3.75M3 21v-3.75M21 3v3.75M21 21v-3.75M12 3v2.25m0 13.5V21"
+                  />
+                </svg>
+                Abrir Escáner QR
+              </button>
+
+              {scanCount > 0 && (
+                <button
+                  onClick={limpiarValidaciones}
+                  className="flex h-12 w-64 items-center justify-center gap-2 rounded-full border border-red-500 px-6 text-sm font-medium text-red-500 transition-colors hover:bg-red-500 hover:text-white"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2}
+                    stroke="currentColor"
+                    className="h-5 w-5"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
+                    />
+                  </svg>
+                  Limpiar Validaciones
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           <div className="relative w-full max-w-md">
