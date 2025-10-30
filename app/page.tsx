@@ -68,10 +68,15 @@ export default function Home() {
         async (result) => {
           console.log('QR escaneado:', result.data);
           if (result.data === 'Asamblea de circuito') {
-            // Prevent multiple processing at the same time from this device
+            // Prevent multiple processing - check flag immediately
             if (isProcessingRef.current) {
               console.log('Ya procesando...');
               return;
+            }
+            
+            // CRITICAL: Stop scanner immediately to prevent duplicate scans
+            if (qrScannerRef.current) {
+              qrScannerRef.current.stop();
             }
             
             console.log('Procesando código, device_id:', deviceIdRef.current);
@@ -104,22 +109,15 @@ export default function Home() {
                   setScanCount(countData.total);
                 }
                 setShowSuccess(true);
-                closeScanner();
               } else {
                 console.error('Error en respuesta de API:', data);
-                // Still close scanner even on error
-                closeScanner();
               }
             } catch (error) {
               console.error('Error al guardar validación:', error);
-              // Still close scanner even on error
+            } finally {
+              // Always close scanner after processing
               closeScanner();
             }
-            
-            // Always reset processing flag after a delay to allow re-scanning
-            setTimeout(() => {
-              isProcessingRef.current = false;
-            }, 1000);
           } else {
             // Opcional: mostrar mensaje de error
             console.log('QR no válido');
@@ -129,6 +127,7 @@ export default function Home() {
           returnDetailedScanResult: true,
           highlightScanRegion: true,
           highlightCodeOutline: true,
+          maxScansPerSecond: 5, // Limitar detecciones por segundo para evitar múltiples escaneos
         }
       );
 
