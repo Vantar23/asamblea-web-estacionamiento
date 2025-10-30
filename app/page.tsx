@@ -22,6 +22,23 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    // Load count from database on mount
+    const loadCount = async () => {
+      try {
+        const response = await fetch('/api/validaciones');
+        const data = await response.json();
+        if (data.success) {
+          setScanCount(data.total);
+        }
+      } catch (error) {
+        console.error('Error al cargar conteo:', error);
+      }
+    };
+    
+    loadCount();
+  }, []);
+
+  useEffect(() => {
     // Hide success message after 3 seconds
     if (showSuccess) {
       const timer = setTimeout(() => {
@@ -42,11 +59,32 @@ export default function Home() {
     if (videoRef.current) {
       qrScannerRef.current = new QrScanner(
         videoRef.current,
-        (result) => {
+        async (result) => {
           if (result.data === 'Asamblea de circuito') {
-            setScanCount(prev => prev + 1);
-            setShowSuccess(true);
-            closeScanner();
+            try {
+              // Save to database
+              const response = await fetch('/api/validaciones', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ codigo: result.data }),
+              });
+              
+              const data = await response.json();
+              
+              if (data.success) {
+                setScanCount(prev => prev + 1);
+                setShowSuccess(true);
+                closeScanner();
+              }
+            } catch (error) {
+              console.error('Error al guardar validación:', error);
+              // Still show success even if DB fails
+              setScanCount(prev => prev + 1);
+              setShowSuccess(true);
+              closeScanner();
+            }
           } else {
             // Opcional: mostrar mensaje de error
             console.log('QR no válido');
