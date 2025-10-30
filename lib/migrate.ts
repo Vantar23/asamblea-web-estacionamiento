@@ -27,15 +27,24 @@ export async function migrate() {
         ADD COLUMN dispositivo_id VARCHAR(255) DEFAULT 'legacy' NOT NULL AFTER codigo_validado
       `);
 
-      // Add unique constraint
-      await connection.execute(`
-        ALTER TABLE validaciones 
-        ADD UNIQUE KEY unique_scan (codigo_validado, dispositivo_id)
-      `);
-
       console.log('Columna dispositivo_id agregada exitosamente');
     } else {
       console.log('Columna dispositivo_id ya existe');
+    }
+
+    // Drop unique constraint to allow multiple scans from same device
+    try {
+      await connection.execute(`
+        ALTER TABLE validaciones 
+        DROP INDEX unique_scan
+      `);
+      console.log('Restricción única eliminada - ahora se permiten múltiples escaneos desde el mismo dispositivo');
+    } catch (e: any) {
+      if (e.code === 'ER_CANT_DROP_FIELD_OR_KEY') {
+        console.log('La restricción única ya no existe');
+      } else {
+        throw e;
+      }
     }
   } catch (error) {
     console.error('Error en migración:', error);

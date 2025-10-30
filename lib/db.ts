@@ -28,8 +28,7 @@ export async function getConnection() {
         id INT AUTO_INCREMENT PRIMARY KEY,
         fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         codigo_validado VARCHAR(255) NOT NULL,
-        dispositivo_id VARCHAR(255) NOT NULL,
-        UNIQUE KEY unique_scan (codigo_validado, dispositivo_id)
+        dispositivo_id VARCHAR(255) NOT NULL
       )
     `);
 
@@ -52,14 +51,14 @@ export async function getConnection() {
           ADD COLUMN dispositivo_id VARCHAR(255) DEFAULT 'legacy' NOT NULL AFTER codigo_validado
         `);
         
-        // Try to add unique constraint (may fail if it exists)
+        // Try to drop unique constraint if it exists (to allow multiple scans)
         try {
           await connection.execute(`
             ALTER TABLE validaciones 
-            ADD UNIQUE KEY unique_scan (codigo_validado, dispositivo_id)
+            DROP INDEX unique_scan
           `);
         } catch (e) {
-          // Constraint might already exist, ignore
+          // Constraint might not exist, ignore
         }
       }
     } catch (error) {

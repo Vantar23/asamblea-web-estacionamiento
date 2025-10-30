@@ -19,31 +19,17 @@ export async function POST(request: Request) {
     const connection = await getConnection();
     console.log('Conexión obtenida, intentando insertar...');
     
-    try {
-      // Insert validation record - will fail if unique constraint is violated
-      await connection.execute(
-        'INSERT INTO validaciones (codigo_validado, dispositivo_id) VALUES (?, ?)',
-        [codigo, dispositivo_id]
-      );
+    // Insert validation record - now allows multiple scans from same device
+    await connection.execute(
+      'INSERT INTO validaciones (codigo_validado, dispositivo_id) VALUES (?, ?)',
+      [codigo, dispositivo_id]
+    );
 
-      console.log('Insert exitoso');
-      return NextResponse.json({ 
-        success: true,
-        message: 'Código validado correctamente'
-      });
-    } catch (insertError: any) {
-      console.error('Error al insertar:', insertError);
-      // Check if it's a duplicate entry error
-      if (insertError.code === 'ER_DUP_ENTRY' || insertError.errno === 1062) {
-        console.log('Código duplicado');
-        return NextResponse.json({ 
-          success: true,
-          message: 'Ya se había validado este código en este dispositivo',
-          duplicate: true
-        });
-      }
-      throw insertError;
-    }
+    console.log('Insert exitoso');
+    return NextResponse.json({ 
+      success: true,
+      message: 'Código validado correctamente'
+    });
   } catch (error) {
     console.error('Error al validar código:', error);
     return NextResponse.json(
