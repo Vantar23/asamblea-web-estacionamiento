@@ -3,9 +3,13 @@ import { getConnection } from '@/lib/db';
 
 export async function POST(request: Request) {
   try {
-    const { codigo, dispositivo_id } = await request.json();
+    const body = await request.json();
+    console.log('POST /api/validaciones recibido:', body);
+    
+    const { codigo, dispositivo_id } = body;
     
     if (!codigo || !dispositivo_id) {
+      console.log('Faltan campos:', { codigo, dispositivo_id });
       return NextResponse.json(
         { error: 'Código y dispositivo_id requeridos' },
         { status: 400 }
@@ -13,6 +17,7 @@ export async function POST(request: Request) {
     }
 
     const connection = await getConnection();
+    console.log('Conexión obtenida, intentando insertar...');
     
     try {
       // Insert validation record - will fail if unique constraint is violated
@@ -21,13 +26,16 @@ export async function POST(request: Request) {
         [codigo, dispositivo_id]
       );
 
+      console.log('Insert exitoso');
       return NextResponse.json({ 
         success: true,
         message: 'Código validado correctamente'
       });
     } catch (insertError: any) {
+      console.error('Error al insertar:', insertError);
       // Check if it's a duplicate entry error
       if (insertError.code === 'ER_DUP_ENTRY' || insertError.errno === 1062) {
+        console.log('Código duplicado');
         return NextResponse.json({ 
           success: true,
           message: 'Ya se había validado este código en este dispositivo',
@@ -39,7 +47,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Error al validar código:', error);
     return NextResponse.json(
-      { error: 'Error interno del servidor' },
+      { error: 'Error interno del servidor', details: String(error) },
       { status: 500 }
     );
   }
