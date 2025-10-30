@@ -9,6 +9,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [showSuccess, setShowSuccess] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const qrScannerRef = useRef<QrScanner | null>(null);
 
@@ -61,6 +62,13 @@ export default function Home() {
         videoRef.current,
         async (result) => {
           if (result.data === 'Asamblea de circuito') {
+            // Prevent multiple executions
+            if (isProcessing) {
+              return;
+            }
+            
+            setIsProcessing(true);
+            
             try {
               // Save to database
               const response = await fetch('/api/validaciones', {
@@ -84,6 +92,8 @@ export default function Home() {
               setScanCount(prev => prev + 1);
               setShowSuccess(true);
               closeScanner();
+            } finally {
+              setIsProcessing(false);
             }
           } else {
             // Opcional: mostrar mensaje de error
@@ -118,6 +128,7 @@ export default function Home() {
     setIsScanning(false);
     setError('');
     setIsLoading(false);
+    setIsProcessing(false);
   };
 
   return (
