@@ -84,14 +84,18 @@ export default function Home() {
               const data = await response.json();
               
               if (data.success) {
-                setScanCount(prev => prev + 1);
+                // Reload count from database to ensure accuracy
+                const countResponse = await fetch('/api/validaciones');
+                const countData = await countResponse.json();
+                if (countData.success) {
+                  setScanCount(countData.total);
+                }
                 setShowSuccess(true);
                 closeScanner();
               }
             } catch (error) {
               console.error('Error al guardar validación:', error);
               // Still show success even if DB fails
-              setScanCount(prev => prev + 1);
               setShowSuccess(true);
               closeScanner();
             } finally {
