@@ -27,7 +27,9 @@ export async function getConnection() {
       CREATE TABLE IF NOT EXISTS validaciones (
         id INT AUTO_INCREMENT PRIMARY KEY,
         fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        codigo_validado VARCHAR(255) NOT NULL
+        codigo_validado VARCHAR(255) NOT NULL,
+        dispositivo_id VARCHAR(255) NOT NULL,
+        UNIQUE KEY unique_scan (codigo_validado, dispositivo_id)
       )
     `);
   }

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import QrScanner from 'qr-scanner';
+import { getDeviceId } from '@/lib/deviceId';
 
 export default function Home() {
   const [isScanning, setIsScanning] = useState(false);
@@ -13,6 +14,7 @@ export default function Home() {
   const qrScannerRef = useRef<QrScanner | null>(null);
   const isProcessingRef = useRef(false);
   const lastProcessedCode = useRef<string | null>(null);
+  const deviceIdRef = useRef<string>('');
 
   useEffect(() => {
     // Cleanup on unmount
@@ -24,6 +26,9 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    // Initialize device ID
+    deviceIdRef.current = getDeviceId();
+    
     // Load count from database on mount
     const loadCount = async () => {
       try {
@@ -78,7 +83,10 @@ export default function Home() {
                 headers: {
                   'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ codigo: result.data }),
+                body: JSON.stringify({ 
+                  codigo: result.data,
+                  dispositivo_id: deviceIdRef.current
+                }),
               });
               
               const data = await response.json();
