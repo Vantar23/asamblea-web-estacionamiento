@@ -67,29 +67,36 @@ export default function Home() {
       qrScannerRef.current = new QrScanner(
         videoRef.current,
         async (result) => {
+          console.log('QR escaneado:', result.data);
           if (result.data === 'Asamblea de circuito') {
             // Prevent multiple executions of the same code
             if (isProcessingRef.current || lastProcessedCode.current === result.data) {
+              console.log('Ya procesando o código duplicado');
               return;
             }
             
+            console.log('Procesando código, device_id:', deviceIdRef.current);
             isProcessingRef.current = true;
             lastProcessedCode.current = result.data;
             
             try {
               // Save to database
+              const requestBody = { 
+                codigo: result.data,
+                dispositivo_id: deviceIdRef.current
+              };
+              console.log('Enviando a API:', requestBody);
+              
               const response = await fetch('/api/validaciones', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ 
-                  codigo: result.data,
-                  dispositivo_id: deviceIdRef.current
-                }),
+                body: JSON.stringify(requestBody),
               });
               
               const data = await response.json();
+              console.log('Respuesta de API:', data);
               
               if (data.success) {
                 // Reload count from database to ensure accuracy
@@ -100,6 +107,8 @@ export default function Home() {
                 }
                 setShowSuccess(true);
                 closeScanner();
+              } else {
+                console.error('Error en respuesta de API:', data);
               }
             } catch (error) {
               console.error('Error al guardar validación:', error);
