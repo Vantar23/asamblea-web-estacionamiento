@@ -13,7 +13,6 @@ export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const qrScannerRef = useRef<QrScanner | null>(null);
   const isProcessingRef = useRef(false);
-  const lastProcessedCode = useRef<string | null>(null);
   const deviceIdRef = useRef<string>('');
 
   useEffect(() => {
@@ -69,15 +68,14 @@ export default function Home() {
         async (result) => {
           console.log('QR escaneado:', result.data);
           if (result.data === 'Asamblea de circuito') {
-            // Prevent multiple executions of the same code
-            if (isProcessingRef.current || lastProcessedCode.current === result.data) {
-              console.log('Ya procesando o código duplicado');
+            // Prevent multiple processing at the same time from this device
+            if (isProcessingRef.current) {
+              console.log('Ya procesando...');
               return;
             }
             
             console.log('Procesando código, device_id:', deviceIdRef.current);
             isProcessingRef.current = true;
-            lastProcessedCode.current = result.data;
             
             try {
               // Save to database
@@ -109,15 +107,19 @@ export default function Home() {
                 closeScanner();
               } else {
                 console.error('Error en respuesta de API:', data);
+                // Still close scanner even on error
+                closeScanner();
               }
             } catch (error) {
               console.error('Error al guardar validación:', error);
-              // Still show success even if DB fails
-              setShowSuccess(true);
+              // Still close scanner even on error
               closeScanner();
-            } finally {
-              isProcessingRef.current = false;
             }
+            
+            // Always reset processing flag after a delay to allow re-scanning
+            setTimeout(() => {
+              isProcessingRef.current = false;
+            }, 1000);
           } else {
             // Opcional: mostrar mensaje de error
             console.log('QR no válido');
@@ -152,7 +154,6 @@ export default function Home() {
     setError('');
     setIsLoading(false);
     isProcessingRef.current = false;
-    lastProcessedCode.current = null;
   };
 
   const limpiarValidaciones = async () => {
