@@ -6,6 +6,8 @@ import QrScanner from 'qr-scanner';
 export default function Home() {
   const [isScanning, setIsScanning] = useState(false);
   const [scanCount, setScanCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string>('');
   const videoRef = useRef<HTMLVideoElement>(null);
   const qrScannerRef = useRef<QrScanner | null>(null);
 
@@ -19,6 +21,13 @@ export default function Home() {
   }, []);
 
   const startScanner = async () => {
+    setIsLoading(true);
+    setError('');
+    setIsScanning(true);
+    
+    // Wait a moment for the video element to render
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     if (videoRef.current) {
       qrScannerRef.current = new QrScanner(
         videoRef.current,
@@ -33,14 +42,19 @@ export default function Home() {
         },
         {
           returnDetailedScanResult: true,
+          highlightScanRegion: true,
+          highlightCodeOutline: true,
         }
       );
 
       try {
         await qrScannerRef.current.start();
-        setIsScanning(true);
-      } catch (error) {
-        console.error('Error al iniciar el escáner:', error);
+        setIsLoading(false);
+      } catch (err: any) {
+        console.error('Error al iniciar el escáner:', err);
+        setError(err.message || 'Error al iniciar la cámara. Por favor, verifica los permisos.');
+        setIsLoading(false);
+        setIsScanning(false);
       }
     }
   };
@@ -50,8 +64,10 @@ export default function Home() {
       qrScannerRef.current.stop();
       qrScannerRef.current.destroy();
       qrScannerRef.current = null;
-      setIsScanning(false);
     }
+    setIsScanning(false);
+    setError('');
+    setIsLoading(false);
   };
 
   return (
@@ -100,35 +116,70 @@ export default function Home() {
           </div>
         ) : (
           <div className="relative w-full max-w-md">
-            <video
-              ref={videoRef}
-              className="w-full rounded-lg"
-            />
-            
-            <button
-              onClick={closeScanner}
-              className="absolute top-4 right-4 flex h-10 w-10 items-center justify-center rounded-full bg-red-500 text-white transition-colors hover:bg-red-600"
-              aria-label="Cerrar escáner"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={2.5}
-                stroke="currentColor"
-                className="h-6 w-6"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M6 18L18 6M6 6l12 12"
+            {error ? (
+              <div className="flex flex-col items-center gap-4 rounded-lg bg-red-50 p-8 text-center dark:bg-red-900/20">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="currentColor"
+                  className="h-12 w-12 text-red-500"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
+                  />
+                </svg>
+                <p className="text-lg font-medium text-red-800 dark:text-red-300">
+                  {error}
+                </p>
+                <button
+                  onClick={closeScanner}
+                  className="mt-4 rounded-full bg-red-500 px-6 py-3 text-white transition-colors hover:bg-red-600"
+                >
+                  Cerrar
+                </button>
+              </div>
+            ) : (
+              <>
+                {isLoading && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 rounded-lg">
+                    <div className="text-white text-lg">Cargando cámara...</div>
+                  </div>
+                )}
+                <video
+                  ref={videoRef}
+                  className="w-full rounded-lg"
                 />
-              </svg>
-            </button>
+                
+                <button
+                  onClick={closeScanner}
+                  className="absolute top-4 right-4 flex h-10 w-10 items-center justify-center rounded-full bg-red-500 text-white transition-colors hover:bg-red-600 z-20"
+                  aria-label="Cerrar escáner"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2.5}
+                    stroke="currentColor"
+                    className="h-6 w-6"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
 
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="h-64 w-64 rounded-lg border-4 border-white shadow-lg"></div>
-            </div>
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="h-64 w-64 rounded-lg border-4 border-white shadow-lg"></div>
+                </div>
+              </>
+            )}
           </div>
         )}
       </main>
