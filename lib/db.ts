@@ -32,6 +32,39 @@ export async function getConnection() {
         UNIQUE KEY unique_scan (codigo_validado, dispositivo_id)
       )
     `);
+
+    // Check if dispositivo_id column exists in case table was created before migration
+    try {
+      const [columns] = await connection.execute(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_SCHEMA = DATABASE() 
+        AND TABLE_NAME = 'validaciones' 
+        AND COLUMN_NAME = 'dispositivo_id'
+      `);
+
+      const columnExists = Array.isArray(columns) && columns.length > 0;
+
+      if (!columnExists) {
+        console.log('Agregando columna dispositivo_id automáticamente...');
+        await connection.execute(`
+          ALTER TABLE validaciones 
+          ADD COLUMN dispositivo_id VARCHAR(255) DEFAULT 'legacy' NOT NULL AFTER codigo_validado
+        `);
+        
+        // Try to add unique constraint (may fail if it exists)
+        try {
+          await connection.execute(`
+            ALTER TABLE validaciones 
+            ADD UNIQUE KEY unique_scan (codigo_validado, dispositivo_id)
+          `);
+        } catch (e) {
+          // Constraint might already exist, ignore
+        }
+      }
+    } catch (error) {
+      console.error('Error verificando/agregando columna dispositivo_id:', error);
+    }
   }
   
   return connection;
