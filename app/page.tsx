@@ -8,6 +8,7 @@ export default function Home() {
   const [scanCount, setScanCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
+  const [showSuccess, setShowSuccess] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const qrScannerRef = useRef<QrScanner | null>(null);
 
@@ -19,6 +20,16 @@ export default function Home() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    // Hide success message after 3 seconds
+    if (showSuccess) {
+      const timer = setTimeout(() => {
+        setShowSuccess(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccess]);
 
   const startScanner = async () => {
     setIsLoading(true);
@@ -34,6 +45,7 @@ export default function Home() {
         (result) => {
           if (result.data === 'Asamblea de circuito') {
             setScanCount(prev => prev + 1);
+            setShowSuccess(true);
             closeScanner();
           } else {
             // Opcional: mostrar mensaje de error
@@ -81,12 +93,34 @@ export default function Home() {
             
             <div className="flex flex-col items-center gap-2">
               <p className="text-xl font-medium text-zinc-800 dark:text-zinc-300">
-                Escaneos exitosos
+                Códigos validados
               </p>
               <p className="text-5xl font-bold text-black dark:text-zinc-50">
                 {scanCount}
               </p>
             </div>
+
+            {showSuccess && (
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50">
+                <div className="flex items-center gap-3 rounded-full bg-green-500 px-8 py-4 text-white shadow-lg">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2.5}
+                    stroke="currentColor"
+                    className="h-6 w-6"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+                    />
+                  </svg>
+                  <span className="text-lg font-semibold">Código validado</span>
+                </div>
+              </div>
+            )}
 
             <button
               onClick={startScanner}
